@@ -1,0 +1,412 @@
+# package.json
+{
+  "name": "sagan-dashboard-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Sagan Dashboard - Pharmaceutical Research Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "pharmaceutical",
+    "research",
+    "survey",
+    "analysis",
+    "claude",
+    "ai"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}
+
+---
+
+# Procfile (for Heroku)
+web: node server.js
+
+---
+
+# .env.example
+# Copy this to .env and fill in your actual API key
+ANTHROPIC_API_KEY=your_actual_api_key_here
+PORT=3000
+
+---
+
+# .gitignore
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Environment variables
+.env
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+---
+
+# README.md
+# Sagan Dashboard Backend
+
+Backend server for the Sagan Dashboard pharmaceutical research platform.
+
+## Setup Instructions
+
+### 1. Install Node.js
+Download and install Node.js from https://nodejs.org (version 16 or higher)
+
+### 2. Create Project Folder
+```bash
+mkdir sagan-backend
+cd sagan-backend
+```
+
+### 3. Create Files
+Create these files in your project folder:
+- server.js (copy the server code)
+- package.json (copy the package.json content)
+- .env (create and add your API key)
+
+### 4. Install Dependencies
+```bash
+npm install
+```
+
+### 5. Set Your API Key
+Create a `.env` file:
+```
+ANTHROPIC_API_KEY=your_actual_api_key_here
+```
+
+### 6. Test Locally
+```bash
+npm start
+```
+Visit http://localhost:3000 to test
+
+## Deployment Options
+
+### Option A: Heroku (Recommended for beginners)
+1. Create account at heroku.com
+2. Install Heroku CLI
+3. Run these commands:
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+heroku create your-app-name
+heroku config:set ANTHROPIC_API_KEY=your_actual_api_key_here
+git push heroku main
+```
+
+### Option B: Railway
+1. Go to railway.app
+2. Connect your GitHub repository
+3. Add environment variable: ANTHROPIC_API_KEY
+4. Deploy automatically
+
+### Option C: Render
+1. Go to render.com
+2. Connect your GitHub repository
+3. Set environment variable: ANTHROPIC_API_KEY
+4. Deploy
+
+## API Endpoints
+
+- `GET /` - Server status
+- `GET /api/health` - Health check
+- `POST /api/analyze` - Analyze survey data
+- `POST /api/chat` - Chat with analysis
+
+## Environment Variables
+
+- `ANTHROPIC_API_KEY` - Your Claude API key (required)
+- `PORT` - Server port (default: 3000)
+
+---
+
+# deployment-guide.md
+
+## 🚀 COMPLETE DEPLOYMENT GUIDE
+
+### STEP 1: PREPARE YOUR FILES
+
+1. **Create a new folder** called `sagan-backend`
+2. **Copy these files** into the folder:
+   - `server.js` (the backend server code)
+   - `package.json` (the dependencies file)
+   - `Procfile` (for Heroku deployment)
+   - `.env` (your API key file)
+
+### STEP 2: SET UP YOUR API KEY
+
+1. **Create a `.env` file** in your project folder
+2. **Add this line** (replace with your actual API key):
+   ```
+   ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
+   ```
+3. **Keep this file secure** - never share it or commit it to Git
+
+### STEP 3: DEPLOY TO HEROKU (FREE)
+
+#### Option A: Using Heroku Web Interface (Easiest)
+1. **Go to** https://heroku.com and create free account
+2. **Click "New"** → "Create new app"
+3. **Choose app name** (e.g., "your-name-sagan-backend")
+4. **Go to Settings** → "Config Vars"
+5. **Add:** Key: `ANTHROPIC_API_KEY`, Value: `your-actual-api-key`
+6. **Go to Deploy** → Connect GitHub or upload files
+7. **Click "Deploy Branch"**
+
+#### Option B: Using Heroku CLI
+```bash
+# Install Heroku CLI from heroku.com/cli
+# Then run these commands:
+
+cd sagan-backend
+npm install
+git init
+git add .
+git commit -m "Initial commit"
+heroku create your-app-name
+heroku config:set ANTHROPIC_API_KEY=your_actual_api_key_here
+git push heroku main
+```
+
+# deployment-guide.md
+
+## 🚀 COMPLETE DEPLOYMENT GUIDE
+
+### STEP 1: PREPARE YOUR FILES
+
+1. **Create a new folder** called `sagan-backend`
+2. **Copy these files** into the folder:
+   - `server.js` (the backend server code)
+   - `package.json` (the dependencies file)
+   - `Procfile` (for Heroku deployment)
+   - `.env` (your API key file)
+
+### STEP 2: SET UP YOUR API KEY
+
+1. **Create a `.env` file** in your project folder
+2. **Add this line** (replace with your actual API key):
+   ```
+   ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
+   ```
+3. **Keep this file secure** - never share it or commit it to Git
+
+### STEP 3: DEPLOY TO HEROKU (FREE)
+
+#### Option A: Using Heroku Web Interface (Easiest)
+1. **Go to** https://heroku.com and create free account
+2. **Click "New"** → "Create new app"
+3. **Choose app name** (e.g., "your-name-sagan-backend")
+4. **Go to Settings** → "Config Vars"
+5. **Add:** Key: `ANTHROPIC_API_KEY`, Value: `your-actual-api-key`
+6. **Go to Deploy** → Connect GitHub or upload files
+7. **Click "Deploy Branch"**
+
+#### Option B: Using Heroku CLI
+```bash
+# Install Heroku CLI from heroku.com/cli
+# Then run these commands:
+
+cd sagan-backend
+npm install
+git init
+git add .
+git commit -m "Initial commit"
+heroku create your-app-name
+heroku config:set ANTHROPIC_API_KEY=your_actual_api_key_here
+git push heroku main
+```
+
+### STEP 4: UPDATE FRONTEND
+
+1. **Open your frontend HTML file**
+2. **Find this line** (around line 442):
+   ```javascript
+   const API_BASE_URL = 'https://your-backend-url.herokuapp.com';
+   ```
+3. **Replace with your Heroku app URL**:
+   ```javascript
+   const API_BASE_URL = 'https://your-app-name.herokuapp.com';
+   ```
+
+### STEP 5: DEPLOY FRONTEND
+
+#### Option A: Netlify (Recommended)
+1. **Go to** https://netlify.com
+2. **Drag and drop** your updated HTML file
+3. **Get your public URL** (e.g., https://amazing-name-123.netlify.app)
+4. **Share this URL** with your team
+
+#### Option B: Vercel
+1. **Go to** https://vercel.com
+2. **Upload your HTML file**
+3. **Get instant deployment**
+
+### STEP 6: TEST YOUR DEPLOYMENT
+
+1. **Visit your frontend URL**
+2. **Upload a test file**
+3. **Generate an analysis**
+4. **Test the chat feature**
+5. **Check that charts generate**
+
+### TROUBLESHOOTING
+
+#### Backend Issues:
+- **Check Heroku logs**: `heroku logs --tail`
+- **Verify API key**: Go to Heroku Settings → Config Vars
+- **Test health endpoint**: Visit `https://your-app.herokuapp.com/api/health`
+
+#### Frontend Issues:
+- **Check browser console** (F12 → Console)
+- **Verify API_BASE_URL** points to your Heroku app
+- **Test backend connection** manually
+
+#### Common Errors:
+- **"API key not configured"**: Check your Heroku config vars
+- **"CORS error"**: Backend might not be running
+- **"Analysis failed"**: Check Heroku logs for details
+
+### ALTERNATIVE FREE HOSTING OPTIONS
+
+#### Railway (Alternative to Heroku)
+1. **Go to** https://railway.app
+2. **Connect GitHub** repository
+3. **Add environment variable**: `ANTHROPIC_API_KEY`
+4. **Deploy automatically**
+
+#### Render (Another Alternative)
+1. **Go to** https://render.com
+2. **Create new Web Service**
+3. **Connect repository**
+4. **Add environment variable**: `ANTHROPIC_API_KEY`
+
+### SECURITY CHECKLIST
+
+✅ **API key in environment variables** (not in code)
+✅ **`.env` file in `.gitignore`**
+✅ **CORS properly configured**
+✅ **No API key in frontend code**
+✅ **HTTPS enabled** (automatic with Heroku/Netlify)
+
+### FINAL STEPS
+
+1. **Test with real survey data**
+2. **Share URL with your team**
+3. **Monitor usage** in Heroku dashboard
+4. **Set up custom domain** (optional)
+
+---
+
+## 📞 NEED HELP?
+
+If you get stuck:
+1. **Check the error messages** in browser console
+2. **Look at Heroku logs**: `heroku logs --tail`
+3. **Test each step** individually
+4. **Start with simple test file** first
+
+Your Sagan Dashboard will be live and ready for production use! 🎉
+
+---
+
+# quick-start-checklist.md
+
+## ⚡ QUICK START CHECKLIST
+
+### Prerequisites
+- [ ] Node.js installed (nodejs.org)
+- [ ] Anthropic API key ready
+- [ ] Heroku account created (heroku.com)
+- [ ] Netlify account created (netlify.com)
+
+### Backend Deployment (15 minutes)
+- [ ] Create `sagan-backend` folder
+- [ ] Copy `server.js` file
+- [ ] Copy `package.json` file
+- [ ] Create `.env` file with API key
+- [ ] Deploy to Heroku
+- [ ] Test health endpoint
+- [ ] Copy Heroku URL
+
+### Frontend Deployment (5 minutes)
+- [ ] Update `API_BASE_URL` in HTML file
+- [ ] Upload to Netlify
+- [ ] Test file upload
+- [ ] Test analysis generation
+- [ ] Share URL with team
+
+### Production Ready! ✅
+Your Sagan Dashboard is now live and ready for use.
+
+---
+
+# folder-structure.md
+
+## 📁 PROJECT STRUCTURE
+
+```
+sagan-dashboard/
+├── frontend/
+│   └── index.html          # Main dashboard file
+├── backend/
+│   ├── server.js           # Express server
+│   ├── package.json        # Dependencies
+│   ├── Procfile           # Heroku deployment
+│   ├── .env               # API key (keep secret!)
+│   └── README.md          # Documentation
+└── docs/
+    ├── deployment-guide.md
+    └── user-manual.md
+```
+
+### File Descriptions
+
+**Frontend (`index.html`)**
+- Complete dashboard interface
+- File upload, chat, charts
+- Connects to your backend API
+
+**Backend (`server.js`)**
+- Express.js server
+- Claude API integration
+- Analysis and chat endpoints
+
+**Configuration (`package.json`)**
+- Node.js dependencies
+- Deployment scripts
+
+**Environment (`.env`)**
+- Your API key (never share this!)
+- Server configuration
+
+**Deployment (`Procfile`)**
+- Heroku deployment instructions
