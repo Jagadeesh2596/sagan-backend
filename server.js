@@ -83,7 +83,7 @@ ${fileContent}`;
 
         // Call Claude API
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 4000,
             temperature: 0.7,
             system: systemPrompt,
@@ -158,7 +158,7 @@ USER QUESTION: ${question}
 Please provide a helpful, specific answer based on the analysis data. Keep your response focused and under 200 words.`;
 
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 300,
             temperature: 0.3,
             messages: [{
