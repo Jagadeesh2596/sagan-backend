@@ -93,7 +93,7 @@ ${fileContent}`;
             }]
         }, {
             headers: {
-                'Authorization': `Bearer ${ANTHROPIC_API_KEY}`,
+                'x-api-key': ANTHROPIC_API_KEY,
                 'Content-Type': 'application/json',
                 'anthropic-version': '2023-06-01'
             }
