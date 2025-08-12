@@ -59,6 +59,23 @@ let systemStats = {
     startTime: new Date()
 };
 
+// Learning mode tracking
+let learningData = {
+    queryCount: 0,
+    exampleCount: 0,
+    targetQueries: 50,
+    queries: [], // Store queries for fine-tuning
+    responses: [] // Store responses for fine-tuning
+};
+
+// Enhanced RAG settings
+let ragSettings = {
+    enabled: adminSettings.ragEnabled,
+    mode: 'learning', // 'disabled', 'learning', 'retrieval', 'finetuned'
+    similarityThreshold: adminSettings.similarityThreshold,
+    maxExamples: adminSettings.maxTrainingExamples
+};
+
 // ===========================
 // RAG HELPER FUNCTIONS
 // ===========================
@@ -337,8 +354,25 @@ ${fileContent}`;
 
         const analysis = response.data.content[0].text;
         
+        // Learning Mode: Store query and response for fine-tuning
+        if (ragSettings.mode === 'learning') {
+            learningData.queryCount++;
+            learningData.queries.push({
+                query: fileContent,
+                response: analysis,
+                ragUsed: relevantContext.length > 0,
+                timestamp: new Date().toISOString()
+            });
+            
+            console.log(`Learning Mode: Query ${learningData.queryCount}/${learningData.targetQueries} stored`);
+            
+            if (learningData.queryCount >= learningData.targetQueries) {
+                console.log('Learning complete! Ready for fine-tuning preparation.');
+            }
+        }
+        
         // Process and store analysis for future RAG queries (if RAG enabled)
-        if (adminSettings.ragEnabled) {
+        if (ragSettings.enabled) {
             await processDocument(analysis, `Analysis_${fileName}_${Date.now()}`, 'generated-analysis');
         }
         
@@ -505,6 +539,176 @@ function extractPercentages(text, keywords) {
 // ===========================
 // ADMIN ENDPOINTS
 // ===========================
+// RAG Settings endpoint
+app.post('/admin/rag-settings', async (req, res) => {
+    try {
+        const { enabled, mode, similarityThreshold, maxExamples } = req.body;
+        
+        // Update RAG settings
+        ragSettings = {
+            enabled: enabled !== undefined ? enabled : ragSettings.enabled,
+            mode: mode || ragSettings.mode,
+            similarityThreshold: similarityThreshold !== undefined ? similarityThreshold : ragSettings.similarityThreshold,
+            maxExamples: maxExamples !== undefined ? maxExamples : ragSettings.maxExamples
+        };
+        
+        // Also update adminSettings for backward compatibility
+        adminSettings.ragEnabled = ragSettings.enabled;
+        adminSettings.similarityThreshold = ragSettings.similarityThreshold;
+        adminSettings.maxTrainingExamples = ragSettings.maxExamples;
+        
+        console.log('RAG settings updated:', ragSettings);
+        
+        res.json({
+            success: true,
+            settings: ragSettings,
+            learningProgress: {
+                queryCount: learningData.queryCount,
+                exampleCount: learningData.exampleCount,
+                targetQueries: learningData.targetQueries
+            }
+        });
+        
+    } catch (error) {
+        console.error('RAG settings update error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update RAG settings'
+        });
+    }
+});
+
+// Initialize Vector DB endpoint
+app.post('/admin/initialize-vectordb', async (req, res) => {
+    try {
+        console.log('Vector database re-initialized (in-memory)');
+        
+        res.json({
+            success: true,
+            message: 'Vector database initialized',
+            documentCount: documentStore.length
+        });
+        
+    } catch (error) {
+        console.error('Vector DB initialization error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to initialize vector database'
+        });
+    }
+});
+
+// Test vector search endpoint
+app.post('/admin/test-vector-search', async (req, res) => {
+    try {
+        const { query, threshold = 0.7, maxResults = 3 } = req.body;
+        
+        if (!query) {
+            return res.status(400).json({
+                success: false,
+                error: 'Query is required'
+            });
+        }
+        
+        const matches = await retrieveRelevantContext(query, maxResults);
+        
+        res.json({
+            success: true,
+            query: query,
+            matches: matches.map(match => ({
+                id: match.id,
+                fileName: match.fileName,
+                content: match.content.substring(0, 200) + '...',
+                similarity: match.similarity,
+                chunkIndex: match.chunkIndex
+            })),
+            matchCount: matches.length,
+            threshold: threshold
+        });
+        
+    } catch (error) {
+        console.error('Vector search test error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Vector search test failed'
+        });
+    }
+});
+
+// Learning progress endpoint
+app.get('/admin/learning-progress', (req, res) => {
+    const progressPercent = Math.min((learningData.queryCount / learningData.targetQueries) * 100, 100);
+    
+    res.json({
+        queryCount: learningData.queryCount,
+        exampleCount: learningData.exampleCount,
+        targetQueries: learningData.targetQueries,
+        progressPercent: Math.round(progressPercent),
+        readyForFineTuning: learningData.queryCount >= learningData.targetQueries
+    });
+});
+
+// RAG statistics endpoint
+app.get('/admin/rag-stats', (req, res) => {
+    res.json({
+        totalQueries: learningData.queryCount,
+        ragMatches: systemStats.ragQueries,
+        last24hQueries: learningData.queryCount,
+        avgSimilarity: 'N/A',
+        commonQueryType: 'Analysis requests',
+        currentMode: ragSettings.mode,
+        documentsInStore: documentStore.length,
+        learningProgress: learningData
+    });
+});
+
+// Upload with vectorization endpoint
+app.post('/admin/upload-training-vectorize', async (req, res) => {
+    try {
+        const { trainingData, fileName, vectorize = true, ragMode } = req.body;
+        
+        if (!trainingData || !fileName) {
+            return res.status(400).json({
+                success: false,
+                error: 'Training data and filename are required'
+            });
+        }
+        
+        const trainingExample = {
+            content: trainingData,
+            fileName: fileName,
+            uploadedAt: new Date().toISOString(),
+            category: 'training',
+            keywords: extractKeywords(trainingData)
+        };
+        
+        trainingExamples.push(trainingExample);
+        
+        let processedChunks = [];
+        if (vectorize && ragSettings.enabled) {
+            processedChunks = await processDocument(trainingData, fileName, 'training');
+        }
+        
+        learningData.exampleCount = trainingExamples.length;
+        
+        console.log(`Training document uploaded and vectorized: ${fileName} (${processedChunks.length} chunks)`);
+        
+        res.json({
+            success: true,
+            message: 'Training file uploaded and vectorized',
+            fileName: fileName,
+            chunkCount: processedChunks.length,
+            totalExamples: trainingExamples.length
+        });
+        
+    } catch (error) {
+        console.error('Upload and vectorization error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to upload and vectorize training file'
+        });
+    }
+});
 
 app.get('/admin', (req, res) => {
     res.send(`
@@ -722,13 +926,19 @@ app.get('/admin/stats', (req, res) => {
         activeUsers: systemStats.activeUsers,
         trainingExamples: trainingExamples.length,
         documentChunks: documentStore.length,
+        ragMatches: systemStats.ragQueries,
+        learningProgressPercent: Math.round(Math.min((learningData.queryCount / learningData.targetQueries) * 100, 100)),
         documentsProcessed: systemStats.documentsProcessed,
-        ragQueries: systemStats.ragQueries,
         conversationMemory: conversationMemory.length,
-        ragEnabled: adminSettings.ragEnabled,
+        ragEnabled: ragSettings.enabled,
         uptime: `${uptimeHours}h ${uptimeMinutes}m`,
         systemHealth: 'healthy',
         lastRestart: systemStats.startTime.toISOString(),
+        learningProgress: {
+            queryCount: learningData.queryCount,
+            exampleCount: learningData.exampleCount,
+            targetQueries: learningData.targetQueries
+        },
         apiKeys: {
             anthropic: !!ANTHROPIC_API_KEY,
             openai: !!OPENAI_API_KEY
