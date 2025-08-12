@@ -14,6 +14,38 @@ app.use(express.json({ limit: '10mb' }));
 const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY; // Your API key goes here
 
+// Admin settings and tracking
+let adminSettings = {
+    systemPrompt: `You are an expert pharmaceutical market research analyst specializing in physician survey data analysis and executive summary generation.
+
+Your task is to analyze the provided survey data and generate a compelling executive summary with the following characteristics:
+
+1. Professional pharmaceutical industry tone
+2. Timeline-based narrative with quantified insights
+3. Specific percentages and metrics
+4. Market context and competitive positioning
+5. Actionable business recommendations
+
+Focus on:
+- Treatment adoption patterns
+- Academic vs Community practice differences
+- Geographic variations
+- Competitive dynamics
+- Future prescribing intentions
+
+Format your response as a professional executive summary with clear headers and bullet points.`,
+    claudeModel: 'claude-3-5-sonnet-20241022',
+    maxTokens: 4000,
+    temperature: 0.7
+};
+
+let trainingExamples = [];
+let systemStats = {
+    totalAnalyses: 0,
+    activeUsers: 0,
+    startTime: new Date()
+};
+
 // Basic route
 app.get('/', (req, res) => {
     res.json({ 
@@ -50,24 +82,10 @@ app.post('/api/analyze', async (req, res) => {
         console.log(`Processing analysis for file: ${fileName}`);
         
         // Construct the prompt for Claude
-        const systemPrompt = `You are an expert pharmaceutical market research analyst specializing in physician survey data analysis and executive summary generation.
+        const dynamicSystemPrompt = adminSettings.systemPrompt + (trainingExamples.length > 0 ? 
 
-Your task is to analyze the provided survey data and generate a compelling executive summary with the following characteristics:
-
-1. Professional pharmaceutical industry tone
-2. Timeline-based narrative with quantified insights
-3. Specific percentages and metrics
-4. Market context and competitive positioning
-5. Actionable business recommendations
-
-Focus on:
-- Treatment adoption patterns
-- Academic vs Community practice differences
-- Geographic variations
-- Competitive dynamics
-- Future prescribing intentions
-
-Format your response as a professional executive summary with clear headers and bullet points.`;
+    '\n\nREFERENCE EXAMPLES:\n' + trainingExamples.slice(0, 3).map(ex => ex.content).join('\n---\n') + 
+    '\n\nUse these examples as style guides for your analysis format and tone.' : '');
 
         let userInstruction = `Please analyze this pharmaceutical survey data from the file "${fileName}":
 
@@ -83,17 +101,17 @@ ${fileContent}`;
 
         // Call Claude API
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 4000,
-            temperature: 0.7,
-            system: systemPrompt,
+            model: adminSettings.claudeModel,
+            max_tokens: adminSettings.maxTokens,
+            temperature: adminSettings.temperature,
+            system: dynamicSystemPrompt,
             messages: [{
                 role: 'user',
                 content: userInstruction
             }]
         }, {
             headers: {
-                'x-api-key': ANTHROPIC_API_KEY,
+                'Authorization': `Bearer ${ANTHROPIC_API_KEY}`,
                 'Content-Type': 'application/json',
                 'anthropic-version': '2023-06-01'
             }
@@ -105,7 +123,8 @@ ${fileContent}`;
         const chartData = generateChartData(analysis);
         
         console.log('Analysis completed successfully');
-        
+        systemStats.totalAnalyses++;
+
         res.json({ 
             analysis: analysis,
             chartData: chartData,
@@ -235,6 +254,74 @@ function extractPercentages(text, keywords) {
     
     return percentages.slice(0, 4); // Return first 4 percentages found
 }
+
+// Admin endpoints
+app.get('/admin', (req, res) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Sagan Admin - Redirect</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white; }
+            .container { max-width: 600px; margin: 0 auto; }
+            .btn { background: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔧 Sagan Admin Dashboard</h1>
+            <p>Admin endpoints are working! Use the Netlify admin dashboard for full interface.</p>
+            <a href="/admin/settings" class="btn">View Settings</a>
+            <a href="/admin/stats" class="btn">View Stats</a>
+        </div>
+    </body>
+    </html>
+    `);
+});
+
+// Get current admin settings
+app.get('/admin/settings', (req, res) => {
+    res.json({
+        ...adminSettings,
+        trainingExamplesCount: trainingExamples.length,
+        lastUpdated: new Date().toISOString()
+    });
+});
+
+// Update system prompt
+app.post('/admin/update-prompt', (req, res) => {
+    try {
+        const { systemPrompt } = req.body;
+        
+        if (!systemPrompt || typeof systemPrompt !== 'string') {
+            return res.status(400).json({ error: 'Valid system prompt required' });
+        }
+        
+        adminSettings.systemPrompt = systemPrompt;
+        console.log('System prompt updated by admin');
+        
+        res.json({ 
+            success: true, 
+            message: 'System prompt updated successfully'
+        });
+        
+    } catch (error) {
+        console.error('Update prompt error:', error);
+        res.status(500).json({ error: 'Failed to update system prompt' });
+    }
+});
+
+// Get system stats
+app.get('/admin/stats', (req, res) => {
+    res.json({
+        totalAnalyses: systemStats.totalAnalyses,
+        activeUsers: systemStats.activeUsers,
+        trainingExamples: trainingExamples.length,
+        systemHealth: 'healthy',
+        startTime: systemStats.startTime.toISOString()
+    });
+});
 
 // Error handling middleware
 app.use((error, req, res, next) => {
