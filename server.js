@@ -253,13 +253,24 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+    const cleanedApiKey = ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.trim() : null;
+    
     res.json({ 
         status: 'healthy',
-        apiKeyConfigured: !!ANTHROPIC_API_KEY,
+        apiKeyConfigured: !!cleanedApiKey,
+        apiKeyValid: cleanedApiKey && cleanedApiKey.startsWith('sk-ant-') && cleanedApiKey.length > 20,
+        apiKeyLength: cleanedApiKey ? cleanedApiKey.length : 0,
+        apiKeyPrefix: cleanedApiKey ? cleanedApiKey.substring(0, 15) : 'undefined',
         openaiKeyConfigured: !!OPENAI_API_KEY,
         ragEnabled: adminSettings.ragEnabled,
         documentsInStore: documentStore.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        envCheck: {
+            NODE_ENV: process.env.NODE_ENV || 'undefined',
+            PORT: process.env.PORT || 'undefined',
+            hasAnthropicKey: 'ANTHROPIC_API_KEY' in process.env,
+            allEnvKeys: Object.keys(process.env).filter(key => key.includes('API')).length
+        }
     });
 });
 
@@ -271,9 +282,52 @@ app.post('/api/analyze', async (req, res) => {
     try {
         const { fileContent, fileName, userPrompt, webSearchEnabled } = req.body;
         
-        if (!ANTHROPIC_API_KEY) {
+        // DEBUGGING: Log API key information
+        console.log('=== API KEY DEBUG INFO ===');
+        console.log('Raw ANTHROPIC_API_KEY exists:', !!ANTHROPIC_API_KEY);
+        console.log('Raw ANTHROPIC_API_KEY length:', ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.length : 0);
+        console.log('Raw ANTHROPIC_API_KEY prefix:', ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.substring(0, 15) : 'undefined');
+        
+        // Clean the API key (remove any whitespace)
+        const cleanedApiKey = ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.trim() : null;
+        
+        console.log('Cleaned API key exists:', !!cleanedApiKey);
+        console.log('Cleaned API key length:', cleanedApiKey ? cleanedApiKey.length : 0);
+        console.log('Cleaned API key starts with sk-ant:', cleanedApiKey ? cleanedApiKey.startsWith('sk-ant-') : false);
+        console.log('========================');
+        
+        // Enhanced validation
+        if (!cleanedApiKey) {
+            console.error('❌ API key is null or undefined');
             return res.status(500).json({ 
-                error: 'API key not configured. Please set ANTHROPIC_API_KEY environment variable.' 
+                error: 'API key not configured. Please check your Anthropic API key.',
+                debug: {
+                    keyExists: !!ANTHROPIC_API_KEY,
+                    envVarName: 'ANTHROPIC_API_KEY',
+                    issue: 'API key is null or undefined'
+                }
+            });
+        }
+        
+        if (cleanedApiKey.length < 20) {
+            console.error('❌ API key is too short:', cleanedApiKey.length);
+            return res.status(500).json({ 
+                error: 'API key appears to be invalid (too short).',
+                debug: {
+                    keyLength: cleanedApiKey.length,
+                    issue: 'API key too short'
+                }
+            });
+        }
+        
+        if (!cleanedApiKey.startsWith('sk-ant-')) {
+            console.error('❌ API key does not start with sk-ant-');
+            return res.status(500).json({ 
+                error: 'API key format is invalid.',
+                debug: {
+                    keyPrefix: cleanedApiKey.substring(0, 10),
+                    issue: 'API key does not start with sk-ant-'
+                }
             });
         }
         
@@ -283,11 +337,11 @@ app.post('/api/analyze', async (req, res) => {
         
         console.log(`Processing ${adminSettings.ragEnabled ? 'RAG-enhanced' : 'standard'} analysis for file: ${fileName}`);
         
-        // Build system prompt
+        // Build system prompt (keep your existing code here)
         let enhancedSystemPrompt = adminSettings.systemPrompt;
         let relevantContext = [];
 
-        // RAG Enhancement (if enabled)
+        // RAG Enhancement (if enabled) - keep your existing RAG code
         if (adminSettings.ragEnabled) {
             relevantContext = await retrieveRelevantContext(
                 `${fileContent.substring(0, 500)} ${userPrompt || ''}`, 
@@ -304,7 +358,7 @@ app.post('/api/analyze', async (req, res) => {
             }
         }
 
-        // Add training examples (traditional method)
+        // Add training examples (keep your existing code)
         if (trainingExamples.length > 0) {
             enhancedSystemPrompt += `\n\nSTYLE REFERENCE EXAMPLES:\n`;
             enhancedSystemPrompt += trainingExamples.slice(0, adminSettings.maxTrainingExamples)
@@ -325,7 +379,7 @@ ${fileContent}`;
             userInstruction += `\n\nPlease integrate current market intelligence and recent pharmaceutical industry developments in your analysis.`;
         }
 
-        // Store conversation context
+        // Store conversation context (keep your existing code)
         conversationMemory.push({
             fileName: fileName,
             userPrompt: userPrompt,
@@ -334,7 +388,9 @@ ${fileContent}`;
             ragEnabled: adminSettings.ragEnabled
         });
 
-        // Call Claude API
+        console.log('🚀 Making API call to Anthropic...');
+        
+        // Call Claude API - USE THE CLEANED API KEY
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
             model: adminSettings.claudeModel,
             max_tokens: adminSettings.maxTokens,
@@ -346,14 +402,17 @@ ${fileContent}`;
             }]
         }, {
             headers: {
-                'Authorization': `Bearer ${ANTHROPIC_API_KEY}`,
+                'Authorization': `Bearer ${cleanedApiKey}`, // ✅ Using cleaned API key
                 'Content-Type': 'application/json',
                 'anthropic-version': '2023-06-01'
             }
         });
 
+        console.log('✅ API call successful!');
+
         const analysis = response.data.content[0].text;
         
+        // Keep all your existing post-processing code...
         // Learning Mode: Store query and response for fine-tuning
         if (ragSettings.mode === 'learning') {
             learningData.queryCount++;
@@ -403,10 +462,24 @@ ${fileContent}`;
         });
         
     } catch (error) {
-        console.error('Analysis error:', error.response?.data || error.message);
+        console.error('❌ Analysis error:', error.response?.data || error.message);
+        console.error('Full error details:', {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            message: error.message
+        });
         
         if (error.response?.status === 401) {
-            res.status(401).json({ error: 'Invalid API key. Please check your Anthropic API key.' });
+            console.error('🔑 Authentication failed - API key issue');
+            res.status(401).json({ 
+                error: 'Invalid API key. Please check your Anthropic API key.',
+                details: error.response?.data || 'Authentication failed',
+                debug: {
+                    apiKeyExists: !!ANTHROPIC_API_KEY,
+                    apiKeyLength: ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY.length : 0
+                }
+            });
         } else if (error.response?.status === 429) {
             res.status(429).json({ error: 'Rate limit exceeded. Please try again later.' });
         } else {
