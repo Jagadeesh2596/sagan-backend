@@ -323,6 +323,92 @@ app.get('/admin/stats', (req, res) => {
     });
 });
 
+// Upload training examples
+app.post('/admin/upload-training', (req, res) => {
+    try {
+        const { trainingData, fileName } = req.body;
+        
+        if (!trainingData || !fileName) {
+            return res.status(400).json({ error: 'Training data and filename required' });
+        }
+        
+        // Add training example
+        trainingExamples.push({
+            content: trainingData,
+            fileName: fileName,
+            uploadedAt: new Date().toISOString()
+        });
+        
+        console.log(`Training example uploaded: ${fileName}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Training data uploaded successfully',
+            totalExamples: trainingExamples.length
+        });
+        
+    } catch (error) {
+        console.error('Upload training error:', error);
+        res.status(500).json({ error: 'Failed to upload training data' });
+    }
+});
+
+// Get training examples
+app.get('/admin/training-examples', (req, res) => {
+    res.json({
+        examples: trainingExamples.map(ex => ({
+            fileName: ex.fileName,
+            uploadedAt: ex.uploadedAt,
+            contentPreview: ex.content.substring(0, 200) + '...'
+        })),
+        totalCount: trainingExamples.length
+    });
+});
+
+// Delete training example
+app.delete('/admin/training-examples/:index', (req, res) => {
+    try {
+        const index = parseInt(req.params.index);
+        
+        if (index < 0 || index >= trainingExamples.length) {
+            return res.status(404).json({ error: 'Training example not found' });
+        }
+        
+        const removed = trainingExamples.splice(index, 1)[0];
+        
+        res.json({ 
+            success: true, 
+            message: 'Training example deleted',
+            deletedFile: removed.fileName,
+            remainingCount: trainingExamples.length
+        });
+        
+    } catch (error) {
+        console.error('Delete training error:', error);
+        res.status(500).json({ error: 'Failed to delete training example' });
+    }
+});
+
+// Clear all training data
+app.post('/admin/clear-training', (req, res) => {
+    try {
+        const previousCount = trainingExamples.length;
+        trainingExamples = [];
+        
+        console.log('All training data cleared by admin');
+        
+        res.json({ 
+            success: true, 
+            message: 'All training data cleared',
+            previousCount: previousCount
+        });
+        
+    } catch (error) {
+        console.error('Clear training error:', error);
+        res.status(500).json({ error: 'Failed to clear training data' });
+    }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
     console.error('Server error:', error);
