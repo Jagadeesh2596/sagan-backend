@@ -35,7 +35,7 @@ Focus on:
 - Future prescribing intentions
 
 Format your response as a professional executive summary with clear headers and bullet points.`,
-    claudeModel: 'claude-3-7-sonnet-20250219',
+    claudeModel: 'claude-sonnet-4-latest',
     maxTokens: 4000,
     temperature: 0.7,
     ragEnabled: true,
