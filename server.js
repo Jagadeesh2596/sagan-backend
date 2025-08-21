@@ -35,7 +35,7 @@ Focus on:
 - Future prescribing intentions
 
 Format your response as a professional executive summary with clear headers and bullet points.`,
-    claudeModel: 'claude-sonnet-4-20250514',
+    claudeModel: 'claude-3-5-sonnet-20241022',
     maxTokens: 4000,
     temperature: 0.7,
     ragEnabled: true,
@@ -173,6 +173,49 @@ function extractKeywords(text) {
         .sort((a, b) => wordCount[b] - wordCount[a])
         .slice(0, 10);
 }
+
+// Retry function for handling 529 overloaded errors
+async function callClaudeWithRetry(requestConfig, maxRetries = 5) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`🚀 Attempting Claude API call (attempt ${attempt}/${maxRetries})...`);
+            
+            const response = await axios.post('https://api.anthropic.com/v1/messages', requestConfig.data, {
+                headers: requestConfig.headers
+            });
+            
+            console.log('✅ Claude API call successful!');
+            return response;
+            
+        } catch (error) {
+            const statusCode = error.response?.status;
+            const errorType = error.response?.data?.error?.type;
+            
+            console.log(`❌ API call failed (attempt ${attempt}): ${statusCode} - ${errorType}`);
+            
+            // If it's a 529 overloaded error or 429 rate limit, retry with backoff
+            if ((statusCode === 529 && errorType === 'overloaded_error') || 
+                (statusCode === 429 && errorType === 'rate_limit_error')) {
+                
+                if (attempt < maxRetries) {
+                    // Exponential backoff: 2^attempt seconds + random jitter
+                    const backoffTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                    console.log(`⏳ Retrying in ${Math.round(backoffTime/1000)} seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, backoffTime));
+                    continue;
+                } else {
+                    console.log(`💀 Max retries (${maxRetries}) exceeded for 529/429 errors`);
+                    throw error;
+                }
+            } else {
+                // For other errors (401, 400, etc.), don't retry
+                console.log(`💀 Non-retryable error: ${statusCode} - ${errorType}`);
+                throw error;
+            }
+        }
+    }
+}
+
 
 async function processDocument(content, fileName, category = 'general') {
     try {
@@ -391,22 +434,25 @@ ${fileContent}`;
         console.log('🚀 Making API call to Anthropic...');
         
         // Call Claude API - USE THE CLEANED API KEY
-        const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: adminSettings.claudeModel,
-            max_tokens: adminSettings.maxTokens,
-            temperature: adminSettings.temperature,
-            system: enhancedSystemPrompt,
-            messages: [{
-                role: 'user',
-                content: userInstruction
-            }]
-        }, {
-            headers: {
-                'x-api-key': cleanedApiKey,  // ✅ FIXED!
-                'Content-Type': 'application/json',
-                'anthropic-version': '2023-06-01'
-            }
-        });
+        const requestConfig = {
+    data: {
+        model: adminSettings.claudeModel,
+        max_tokens: adminSettings.maxTokens,
+        temperature: adminSettings.temperature,
+        system: enhancedSystemPrompt,
+        messages: [{
+            role: 'user',
+            content: userInstruction
+        }]
+    },
+    headers: {
+        'x-api-key': cleanedApiKey,
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01'
+    }
+};
+
+const response = await callClaudeWithRetry(requestConfig, 5);
 
         console.log('✅ API call successful!');
 
@@ -530,21 +576,24 @@ ${analysis}`;
 
 Please provide a helpful, specific answer based on the analysis data${adminSettings.ragEnabled ? ' and reference materials' : ''}. Keep your response focused and under 250 words.`;
 
-        const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: adminSettings.claudeModel,
-            max_tokens: 350,
-            temperature: 0.3,
-            messages: [{
-                role: 'user',
-                content: contextualPrompt
-            }]
-        }, {
-            headers: {
-                'x-api-key': ANTHROPIC_API_KEY.trim(),  // ✅ FIXED!
-                'Content-Type': 'application/json',
-                'anthropic-version': '2023-06-01'
-            }
-        });
+        const chatRequestConfig = {
+    data: {
+        model: adminSettings.claudeModel,
+        max_tokens: 350,
+        temperature: 0.3,
+        messages: [{
+            role: 'user',
+            content: contextualPrompt
+        }]
+    },
+    headers: {
+        'x-api-key': ANTHROPIC_API_KEY.trim(),
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01'
+    }
+};
+
+const response = await callClaudeWithRetry(chatRequestConfig, 3);
 
         const chatResponse = response.data.content[0].text;
         
