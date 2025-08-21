@@ -402,7 +402,7 @@ ${fileContent}`;
             }]
         }, {
             headers: {
-                'Authorization': `Bearer ${cleanedApiKey}`, // ✅ Using cleaned API key
+                'x-api-key': cleanedApiKey,  // ✅ FIXED!
                 'Content-Type': 'application/json',
                 'anthropic-version': '2023-06-01'
             }
@@ -540,7 +540,7 @@ Please provide a helpful, specific answer based on the analysis data${adminSetti
             }]
         }, {
             headers: {
-                'Authorization': `Bearer ${ANTHROPIC_API_KEY}`,
+                'x-api-key': ANTHROPIC_API_KEY.trim(),  // ✅ FIXED!
                 'Content-Type': 'application/json',
                 'anthropic-version': '2023-06-01'
             }
